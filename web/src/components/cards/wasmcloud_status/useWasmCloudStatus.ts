@@ -98,7 +98,7 @@ export function useWasmCloudStatus(): UseWasmCloudStatusResult {
     return {
         data,
         loading: isLoading,
-        error: isFailed,
+        error: isFailed && !hasAnyData,
         consecutiveFailures,
         showSkeleton,
         showEmptyState,

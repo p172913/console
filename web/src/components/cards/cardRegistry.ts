@@ -535,8 +535,6 @@ export const DEMO_DATA_CARDS = new Set([
   'kagenti_security_posture',
   // Crossplane cards - demo until Crossplane is installed
   'crossplane_managed_resources',
-  // wasmCloud cards - demo until wasmCloud is installed
-  'wasmcloud_status',
 ])
 
 /**

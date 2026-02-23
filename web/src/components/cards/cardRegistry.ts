@@ -190,6 +190,7 @@ const RBACExplorer = lazy(() => _clusterAdminBundle.then(m => ({ default: m.RBAC
 const MaintenanceWindows = lazy(() => _clusterAdminBundle.then(m => ({ default: m.MaintenanceWindows })))
 const ClusterChangelog = lazy(() => _clusterAdminBundle.then(m => ({ default: m.ClusterChangelog })))
 const QuotaHeatmap = lazy(() => _clusterAdminBundle.then(m => ({ default: m.QuotaHeatmap })))
+const WasmCloudStatus = lazy(() => import('./wasmcloud_status').then(m => ({ default: m.WasmCloudStatus })))
 
 // Type for card component props
 export type CardComponentProps = { config?: Record<string, unknown> }
@@ -449,6 +450,7 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   error_count: PodIssues,
   security_overview: SecurityIssues,
   rbac_summary: NamespaceRBAC,
+  wasmcloud_status: WasmCloudStatus,
 }
 
 // Export cards directly — CardWrapper.tsx provides the Suspense boundary with a visible skeleton
@@ -533,6 +535,8 @@ export const DEMO_DATA_CARDS = new Set([
   'kagenti_security_posture',
   // Crossplane cards - demo until Crossplane is installed
   'crossplane_managed_resources',
+  // wasmCloud cards - demo until wasmCloud is installed
+  'wasmcloud_status',
 ])
 
 /**
@@ -722,6 +726,8 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   crossplane_managed_resources: () => import('./crossplane-status'),
   // Cloud Native Buildpacks
   buildpacks_status: () => import('./buildpacks-status'),
+  //wasmcloud
+  wasmcloud_status: () => import('./wasmcloud_status'),
   // Flatcar Container Linux
   flatcar_status: () => import('./flatcar_status'),
 }
@@ -734,7 +740,7 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
  */
 export function prefetchCardChunks(cardTypes: string[]): void {
   for (const type of cardTypes) {
-    CARD_CHUNK_PRELOADERS[type]?.()?.catch(() => {})
+    CARD_CHUNK_PRELOADERS[type]?.()?.catch(() => { })
   }
 }
 
@@ -773,7 +779,7 @@ export function prefetchDemoCardChunks(): void {
     () => import('./kagenti/KagentiTopology'),
     () => import('./crossplane-status/CrossplaneManagedResources'),
   ]
-  startupChunks.forEach(load => load().catch(() => {}))
+  startupChunks.forEach(load => load().catch(() => { }))
 }
 
 /**
@@ -1051,6 +1057,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   // Full width cards (12 columns) - complex visualizations
   cluster_comparison: 12,
   cluster_resource_tree: 12,
+  wasmcloud_status: 6,
 }
 
 // Default width for cards not in the map

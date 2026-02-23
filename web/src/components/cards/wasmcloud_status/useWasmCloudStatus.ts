@@ -1,3 +1,4 @@
+import { api } from '../../../lib/api'
 import { useCache } from '../../../lib/cache'
 import { useCardLoadingState } from '../CardDataContext'
 import {
@@ -63,18 +64,12 @@ function toDemoStatus(demo: WasmCloudDemoData): WasmCloudStatus {
 
 async function fetchWasmCloudStatus(): Promise<WasmCloudStatus> {
     const [hostsResp, actorsResp] = await Promise.all([
-        fetch('/api/mcp/wasmcloud/hosts', { headers: { Accept: 'application/json' } }),
-        fetch('/api/mcp/wasmcloud/actors', { headers: { Accept: 'application/json' } }),
+        api.get<{ hosts: WasmCloudHost[] }>('/api/mcp/wasmcloud/hosts'),
+        api.get<{ actors: WasmCloudActor[] }>('/api/mcp/wasmcloud/actors'),
     ])
 
-    if (!hostsResp.ok) throw new Error(`Hosts HTTP ${hostsResp.status}`)
-    if (!actorsResp.ok) throw new Error(`Actors HTTP ${actorsResp.status}`)
-
-    const hostsBody: { hosts?: WasmCloudHost[] } = await hostsResp.json()
-    const actorsBody: { actors?: WasmCloudActor[] } = await actorsResp.json()
-
-    const hosts = Array.isArray(hostsBody?.hosts) ? hostsBody.hosts : []
-    const actors = Array.isArray(actorsBody?.actors) ? actorsBody.actors : []
+    const hosts = Array.isArray(hostsResp.data?.hosts) ? hostsResp.data.hosts : []
+    const actors = Array.isArray(actorsResp.data?.actors) ? actorsResp.data.actors : []
 
     return summarise(hosts, actors)
 }
@@ -103,7 +98,7 @@ export function useWasmCloudStatus(): UseWasmCloudStatusResult {
     return {
         data,
         loading: isLoading,
-        error: isFailed && !hasAnyData,
+        error: isFailed,
         consecutiveFailures,
         showSkeleton,
         showEmptyState,

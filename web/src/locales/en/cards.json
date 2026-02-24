@@ -1725,6 +1725,15 @@
     "calendar": {
       "previousMonth": "Previous month",
       "nextMonth": "Next month",
+      "days": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
       "docs": "wasmCloud Docs",
       "status": "Status",
       "version": "Version",

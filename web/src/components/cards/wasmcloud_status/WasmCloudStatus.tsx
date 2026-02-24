@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
     CheckCircle,
     AlertTriangle,
@@ -8,10 +9,12 @@ import {
     RefreshCw,
     Activity,
     Box,
+    ExternalLink,
 } from 'lucide-react'
 import { Skeleton } from '../../ui/Skeleton'
 import { useWasmCloudStatus } from './useWasmCloudStatus'
 import type { WasmCloudHost, WasmCloudActor } from './demoData'
+import { MetricTile } from '../../../lib/cards/CardComponents'
 
 const HOST_STATUS_STYLE: Record<string, { icon: typeof CheckCircle; color: string; bg: string }> = {
     healthy: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/15' },
@@ -28,19 +31,8 @@ const ACTOR_STATUS_STYLE: Record<string, { color: string; dot: string }> = {
 type Tab = 'hosts' | 'actors'
 
 
-function MetricTile({ label, value, colorClass, icon }: {
-    label: string; value: number | string; colorClass: string; icon: React.ReactNode
-}) {
-    return (
-        <div className="flex-1 p-3 rounded-lg bg-secondary/30 text-center">
-            <div className="flex items-center justify-center gap-1.5 mb-1">{icon}</div>
-            <span className={`text-2xl font-bold ${colorClass}`}>{value}</span>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-        </div>
-    )
-}
-
 function HostRow({ host }: { host: WasmCloudHost }) {
+    const { t } = useTranslation('cards')
     const style = HOST_STATUS_STYLE[host.status] ?? HOST_STATUS_STYLE.healthy
     const Icon = style.icon
     return (
@@ -51,20 +43,20 @@ function HostRow({ host }: { host: WasmCloudHost }) {
                     <span className="text-sm font-medium text-foreground truncate">{host.id}</span>
                 </div>
                 <span className={`text-xs px-1.5 py-0.5 rounded ${style.bg} ${style.color}`}>
-                    {host.status}
+                    {t(`wasmcloud.${host.status}`)}
                 </span>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span title="Cluster">{host.cluster}</span>
-                <span title="Version">v{host.version}</span>
-                <span title="Uptime">↑ {host.uptime}</span>
+                <span title={t('wasmcloud.cluster')}>{host.cluster}</span>
+                <span title={t('wasmcloud.version')}>v{host.version}</span>
+                <span title={t('wasmcloud.uptime')}>↑ {host.uptime}</span>
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
-                    <Cpu className="w-3 h-3" /> {host.actors} actors
+                    <Cpu className="w-3 h-3" /> {t('wasmcloud.actors_count', { count: host.actors })}
                 </span>
                 <span className="flex items-center gap-1">
-                    <Box className="w-3 h-3" /> {host.providers} providers
+                    <Box className="w-3 h-3" /> {t('wasmcloud.providers_count', { count: host.providers })}
                 </span>
             </div>
         </div>
@@ -72,6 +64,7 @@ function HostRow({ host }: { host: WasmCloudHost }) {
 }
 
 function ActorRow({ actor }: { actor: WasmCloudActor }) {
+    const { t } = useTranslation('cards')
     const style = ACTOR_STATUS_STYLE[actor.status] ?? ACTOR_STATUS_STYLE.running
     return (
         <div className="p-2.5 rounded-lg bg-secondary/30 border border-border/50 hover:bg-secondary/50 transition-colors">
@@ -83,7 +76,7 @@ function ActorRow({ actor }: { actor: WasmCloudActor }) {
                 <span className="text-xs text-muted-foreground">×{actor.instances}</span>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span title="Cluster">{actor.cluster}</span>
+                <span title={t('wasmcloud.cluster')}>{actor.cluster}</span>
                 <span className="truncate" title={actor.capabilities.join(', ')}>
                     {actor.capabilities.join(', ')}
                 </span>
@@ -94,6 +87,7 @@ function ActorRow({ actor }: { actor: WasmCloudActor }) {
 
 
 export function WasmCloudStatus() {
+    const { t } = useTranslation('cards')
     const { data, error, showSkeleton, showEmptyState } = useWasmCloudStatus()
     const [tab, setTab] = useState<Tab>('hosts')
 
@@ -117,9 +111,9 @@ export function WasmCloudStatus() {
             <div className="h-full flex flex-col items-center justify-center min-h-card text-muted-foreground gap-2">
                 <AlertTriangle className="w-6 h-6 text-red-400" />
                 <p className="text-sm text-red-400">
-                    {error ? 'Failed to fetch wasmCloud status' : 'No wasmCloud hosts found'}
+                    {error ? t('wasmcloud.fetchError') : t('wasmcloud.noHosts')}
                 </p>
-                <p className="text-xs">Ensure wasmCloud is running on a connected cluster.</p>
+                <p className="text-xs">{t('wasmcloud.ensureRunning')}</p>
             </div>
         )
     }
@@ -127,13 +121,13 @@ export function WasmCloudStatus() {
     const overallHealthy = data.degradedHosts === 0 && data.failedActors === 0
 
     return (
-        <div className="h-full flex flex-col min-h-0 content-loaded gap-3">
+        <div className="h-full flex flex-col min-0 content-loaded gap-3">
             {/* Health badge + last sync */}
             <div className="flex items-center justify-between flex-shrink-0">
                 <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${overallHealthy
-                            ? 'bg-green-500/15 text-green-400'
-                            : 'bg-orange-500/15 text-orange-400'
+                        ? 'bg-green-500/15 text-green-400'
+                        : 'bg-orange-500/15 text-orange-400'
                         }`}
                 >
                     {overallHealthy ? (
@@ -141,7 +135,7 @@ export function WasmCloudStatus() {
                     ) : (
                         <AlertTriangle className="w-4 h-4" />
                     )}
-                    {overallHealthy ? 'Healthy' : 'Degraded'}
+                    {overallHealthy ? t('wasmcloud.healthy') : t('wasmcloud.degraded')}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <RefreshCw className="w-3 h-3" />
@@ -154,19 +148,19 @@ export function WasmCloudStatus() {
             {/* Summary tiles */}
             <div className="flex gap-3 flex-shrink-0">
                 <MetricTile
-                    label="Hosts"
+                    label={t('wasmcloud.hosts')}
                     value={data.totalHosts}
                     colorClass="text-blue-400"
                     icon={<Server className="w-4 h-4 text-blue-400" />}
                 />
                 <MetricTile
-                    label="Actors"
+                    label={t('wasmcloud.actors')}
                     value={data.totalActors}
                     colorClass="text-purple-400"
                     icon={<Cpu className="w-4 h-4 text-purple-400" />}
                 />
                 <MetricTile
-                    label="Running"
+                    label={t('wasmcloud.running')}
                     value={data.runningActors}
                     colorClass={data.failedActors > 0 ? 'text-yellow-400' : 'text-green-400'}
                     icon={<Activity className="w-4 h-4 text-green-400" />}
@@ -174,17 +168,19 @@ export function WasmCloudStatus() {
             </div>
 
             {/* Tab switcher */}
-            <div className="flex gap-1 flex-shrink-0">
-                {(['hosts', 'actors'] as Tab[]).map((t) => (
+            <div className="flex gap-1 flex-shrink-0" role="tablist">
+                {(['hosts', 'actors'] as Tab[]).map((tValue) => (
                     <button
-                        key={t}
-                        onClick={() => setTab(t)}
-                        className={`flex-1 text-xs py-1.5 rounded-md border transition-colors capitalize ${tab === t
-                                ? 'bg-purple-500/20 border-purple-500/30 text-purple-400'
-                                : 'bg-secondary/50 border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
+                        key={tValue}
+                        role="tab"
+                        aria-selected={tab === tValue}
+                        onClick={() => setTab(tValue)}
+                        className={`flex-1 text-xs py-1.5 rounded-md border transition-colors capitalize ${tab === tValue
+                            ? 'bg-purple-500/20 border-purple-500/30 text-purple-400'
+                            : 'bg-secondary/50 border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
                             }`}
                     >
-                        {t} ({t === 'hosts' ? data.totalHosts : data.totalActors})
+                        {tValue === 'hosts' ? t('wasmcloud.hosts') : t('wasmcloud.actors')} ({tValue === 'hosts' ? data.totalHosts : data.totalActors})
                     </button>
                 ))}
             </div>
@@ -194,14 +190,14 @@ export function WasmCloudStatus() {
                 {tab === 'hosts' ? (
                     data.hosts.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                            No hosts found
+                            {t('wasmcloud.noHosts')}
                         </div>
                     ) : (
                         data.hosts.map((host) => <HostRow key={host.id} host={host} />)
                     )
                 ) : data.actors.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                        No actors found
+                        {t('wasmcloud.noActors')}
                     </div>
                 ) : (
                     data.actors.map((actor) => <ActorRow key={actor.id} actor={actor} />)
@@ -216,10 +212,8 @@ export function WasmCloudStatus() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 hover:text-blue-400 transition-colors"
                 >
-                    wasmCloud Docs
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
+                    {t('wasmcloud.docs')}
+                    <ExternalLink className="w-3 h-3" />
                 </a>
             </div>
         </div>

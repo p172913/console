@@ -339,6 +339,9 @@ export const CARD_TITLES: Record<string, string> = {
   ml_jobs: 'ML Jobs',
   ml_notebooks: 'ML Notebooks',
 
+  // Runtime cards
+  wasmcloud_status: 'WasmCloud Status',
+
   // Benchmark cards
   nightly_e2e_status: 'Nightly E2E Status',
   benchmark_hero: 'Latest Benchmark',
@@ -504,6 +507,9 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   ml_jobs: 'Machine learning training and batch job status.',
   ml_notebooks: 'Jupyter notebook server status and resource usage.',
   provider_health: 'Health and status of AI and cloud infrastructure providers.',
+
+  // Runtime cards
+  wasmcloud_status: 'wasmCloud host status, actor inventory, and health monitoring.',
 
   // Games
   sudoku_game: 'Classic Sudoku puzzle game with multiple difficulty levels.',
@@ -700,6 +706,9 @@ const CARD_ICONS: Record<string, { icon: ComponentType<{ className?: string }>, 
   prow_ci_monitor: { icon: Activity, color: 'text-blue-400' },
   github_ci_monitor: { icon: GitBranch, color: 'text-purple-400' },
   cluster_health_monitor: { icon: Server, color: 'text-green-400' },
+
+  // Runtime cards
+  wasmcloud_status: { icon: Box, color: 'text-purple-400' },
 
   // Provider health
   provider_health: { icon: Activity, color: 'text-emerald-400' },
@@ -1350,16 +1359,14 @@ export function CardWrapper({
                 >
                   <Maximize2 className="w-4 h-4" aria-hidden="true" />
                 </button>
-                {cardType !== 'wasmcloud_status' && (
-                  <button
-                    onClick={() => setShowBugReport(true)}
-                    className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={t('cardWrapper.reportIssue')}
-                    title={t('cardWrapper.reportIssue')}
-                  >
-                    <Bug className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowBugReport(true)}
+                  className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={t('cardWrapper.reportIssue')}
+                  title={t('cardWrapper.reportIssue')}
+                >
+                  <Bug className="w-4 h-4" aria-hidden="true" />
+                </button>
                 <div className="relative" data-tour="card-menu">
                   <button
                     ref={menuButtonRef}

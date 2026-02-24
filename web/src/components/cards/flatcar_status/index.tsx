@@ -19,24 +19,7 @@ function useFormatRelativeTime() {
   }
 }
 
-interface MetricTileProps {
-  label: string
-  value: number | string
-  colorClass: string
-  icon: React.ReactNode
-}
-
-function MetricTile({ label, value, colorClass, icon }: MetricTileProps) {
-  return (
-    <div className="flex-1 p-3 rounded-lg bg-secondary/30 text-center">
-      <div className="flex items-center justify-center gap-1.5 mb-1">
-        {icon}
-      </div>
-      <span className={`text-2xl font-bold ${colorClass}`}>{value}</span>
-      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-    </div>
-  )
-}
+import { MetricTile } from '../../../lib/cards/CardComponents'
 
 export function FlatcarStatus() {
   const { t } = useTranslation('cards')
@@ -82,11 +65,10 @@ export function FlatcarStatus() {
       {/* Health badge + last check */}
       <div className="flex items-center justify-between">
         <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-            isHealthy
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${isHealthy
               ? 'bg-green-500/15 text-green-400'
               : 'bg-orange-500/15 text-orange-400'
-          }`}
+            }`}
         >
           {isHealthy ? (
             <CheckCircle className="w-4 h-4" />
@@ -141,9 +123,8 @@ export function FlatcarStatus() {
                 </div>
                 <div className="flex-1 h-2 bg-secondary/50 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      isLatest ? 'bg-green-500/60' : 'bg-orange-500/40'
-                    }`}
+                    className={`h-full rounded-full transition-all ${isLatest ? 'bg-green-500/60' : 'bg-orange-500/40'
+                      }`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

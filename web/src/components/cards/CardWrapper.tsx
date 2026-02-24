@@ -1532,7 +1532,7 @@ export function CardWrapper({
                     This prevents the deadlock where CardWrapper waits for hasData but children never mount.
                     Suspense catches lazy() chunk loading so it doesn't bubble up to Layout and blank the whole page. */}
                     <div className={shouldShowSkeleton ? 'hidden' : 'contents'}>
-                      <DynamicCardErrorBoundary>
+                      <DynamicCardErrorBoundary cardId={cardId || cardType}>
                         <Suspense fallback={<CardSkeleton type={effectiveSkeletonType} rows={skeletonRows || 3} showHeader={false} />}>
                           {children}
                         </Suspense>
@@ -1614,7 +1614,9 @@ export function CardWrapper({
             )}>
               {/* Wrapper ensures children fill available space in expanded mode */}
               <div className="flex-1 min-h-0 flex flex-col">
-                {children}
+                <DynamicCardErrorBoundary cardId={cardId || cardType}>
+                  {children}
+                </DynamicCardErrorBoundary>
               </div>
             </BaseModal.Content>
           </BaseModal>

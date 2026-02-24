@@ -23,7 +23,7 @@ import { isCardExportable } from '../../lib/widgets/widgetRegistry'
 import { emitCardExpanded } from '../../lib/analytics'
 import { WidgetExportModal } from '../widgets/WidgetExportModal'
 import { FeatureRequestModal } from '../feedback/FeatureRequestModal'
-import { DynamicCardErrorBoundary } from './DynamicCardErrorBoundary'
+// import { DynamicCardErrorBoundary } from './DynamicCardErrorBoundary'
 
 // Minimum duration to show spin animation (ensures at least one full rotation)
 const MIN_SPIN_DURATION = 500

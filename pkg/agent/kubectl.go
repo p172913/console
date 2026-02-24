@@ -2,12 +2,17 @@ package agent
 
 import (
 	"bytes"
+	"encoding/base64"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kubestellar/console/pkg/agent/protocol"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
@@ -279,4 +284,303 @@ func (k *KubectlProxy) RenameContext(oldName, newName string) error {
 	}
 
 	return nil
+}
+
+// KubeconfigPreviewEntry describes a context found in an imported kubeconfig.
+type KubeconfigPreviewEntry struct {
+	ContextName string `json:"contextName"`
+	ClusterName string `json:"clusterName"`
+	ServerURL   string `json:"serverUrl"`
+	UserName    string `json:"userName"`
+	IsNew       bool   `json:"isNew"`
+}
+
+// PreviewKubeconfig parses a kubeconfig YAML and returns the contexts it contains
+// along with whether each would be new or already exists.
+func (k *KubectlProxy) PreviewKubeconfig(yamlContent string) ([]KubeconfigPreviewEntry, error) {
+	incoming, err := clientcmd.Load([]byte(yamlContent))
+	if err != nil {
+		return nil, fmt.Errorf("invalid kubeconfig YAML: %w", err)
+	}
+	if len(incoming.Contexts) == 0 {
+		return nil, fmt.Errorf("kubeconfig contains no contexts")
+	}
+
+	var entries []KubeconfigPreviewEntry
+	for name, ctx := range incoming.Contexts {
+		entry := KubeconfigPreviewEntry{
+			ContextName: name,
+			ClusterName: ctx.Cluster,
+			UserName:    ctx.AuthInfo,
+		}
+		if cluster, ok := incoming.Clusters[ctx.Cluster]; ok {
+			entry.ServerURL = cluster.Server
+		}
+		_, exists := k.config.Contexts[name]
+		entry.IsNew = !exists
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+// ImportKubeconfig merges a kubeconfig YAML string into the existing kubeconfig file.
+// It backs up the existing file first, then merges new contexts/clusters/users.
+// Returns lists of added and skipped context names.
+func (k *KubectlProxy) ImportKubeconfig(yamlContent string) (added []string, skipped []string, err error) {
+	incoming, err := clientcmd.Load([]byte(yamlContent))
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid kubeconfig YAML: %w", err)
+	}
+	if len(incoming.Contexts) == 0 {
+		return nil, nil, fmt.Errorf("kubeconfig contains no contexts")
+	}
+
+	// Backup existing kubeconfig if the file exists
+	if _, statErr := os.Stat(k.kubeconfig); statErr == nil {
+		backupPath := fmt.Sprintf("%s.bak-%d", k.kubeconfig, time.Now().Unix())
+		data, readErr := os.ReadFile(k.kubeconfig)
+		if readErr != nil {
+			return nil, nil, fmt.Errorf("failed to read kubeconfig for backup: %w", readErr)
+		}
+		if writeErr := os.WriteFile(backupPath, data, 0600); writeErr != nil {
+			return nil, nil, fmt.Errorf("failed to write backup: %w", writeErr)
+		}
+	}
+
+	// Initialise maps if they are nil (empty starting config)
+	if k.config.Contexts == nil {
+		k.config.Contexts = make(map[string]*api.Context)
+	}
+	if k.config.Clusters == nil {
+		k.config.Clusters = make(map[string]*api.Cluster)
+	}
+	if k.config.AuthInfos == nil {
+		k.config.AuthInfos = make(map[string]*api.AuthInfo)
+	}
+
+	for name, ctx := range incoming.Contexts {
+		if _, exists := k.config.Contexts[name]; exists {
+			skipped = append(skipped, name)
+			continue
+		}
+		// Add context
+		k.config.Contexts[name] = ctx
+		// Add referenced cluster if present
+		if cluster, ok := incoming.Clusters[ctx.Cluster]; ok {
+			if _, exists := k.config.Clusters[ctx.Cluster]; !exists {
+				k.config.Clusters[ctx.Cluster] = cluster
+			}
+		}
+		// Add referenced user if present
+		if user, ok := incoming.AuthInfos[ctx.AuthInfo]; ok {
+			if _, exists := k.config.AuthInfos[ctx.AuthInfo]; !exists {
+				k.config.AuthInfos[ctx.AuthInfo] = user
+			}
+		}
+		added = append(added, name)
+	}
+
+	// Write merged config
+	if writeErr := clientcmd.WriteToFile(*k.config, k.kubeconfig); writeErr != nil {
+		return nil, nil, fmt.Errorf("failed to write merged kubeconfig: %w", writeErr)
+	}
+
+	// Reload from file to stay in sync
+	k.Reload()
+
+	return added, skipped, nil
+}
+
+// AddClusterRequest describes the form fields for adding a cluster.
+type AddClusterRequest struct {
+	ContextName   string `json:"contextName"`
+	ClusterName   string `json:"clusterName"`
+	ServerURL     string `json:"serverUrl"`
+	AuthType      string `json:"authType"` // "token", "certificate"
+	Token         string `json:"token,omitempty"`
+	CertData      string `json:"certData,omitempty"`  // base64 PEM
+	KeyData       string `json:"keyData,omitempty"`   // base64 PEM
+	CAData        string `json:"caData,omitempty"`    // base64 PEM CA cert
+	SkipTLSVerify bool   `json:"skipTlsVerify,omitempty"`
+	Namespace     string `json:"namespace,omitempty"` // default namespace
+}
+
+// TestConnectionRequest describes the fields for testing a cluster connection.
+type TestConnectionRequest struct {
+	ServerURL     string `json:"serverUrl"`
+	AuthType      string `json:"authType"`
+	Token         string `json:"token,omitempty"`
+	CertData      string `json:"certData,omitempty"`
+	KeyData       string `json:"keyData,omitempty"`
+	CAData        string `json:"caData,omitempty"`
+	SkipTLSVerify bool   `json:"skipTlsVerify,omitempty"`
+}
+
+// TestConnectionResult holds the result of a cluster connection test.
+type TestConnectionResult struct {
+	Reachable     bool   `json:"reachable"`
+	ServerVersion string `json:"serverVersion,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+// AddCluster builds a kubeconfig entry from structured input and merges it.
+func (k *KubectlProxy) AddCluster(req AddClusterRequest) error {
+	// Validate required fields
+	if req.ContextName == "" || req.ClusterName == "" || req.ServerURL == "" || req.AuthType == "" {
+		return fmt.Errorf("contextName, clusterName, serverUrl, and authType are required")
+	}
+
+	// Validate auth-type-specific fields
+	switch req.AuthType {
+	case "token":
+		if req.Token == "" {
+			return fmt.Errorf("token is required for token auth type")
+		}
+	case "certificate":
+		if req.CertData == "" || req.KeyData == "" {
+			return fmt.Errorf("certData and keyData are required for certificate auth type")
+		}
+	default:
+		return fmt.Errorf("unsupported authType: %s (must be token or certificate)", req.AuthType)
+	}
+
+	// Check context doesn't already exist
+	if k.config.Contexts != nil {
+		if _, exists := k.config.Contexts[req.ContextName]; exists {
+			return fmt.Errorf("context %q already exists", req.ContextName)
+		}
+	}
+
+	// Build cluster entry
+	cluster := &api.Cluster{
+		Server:                req.ServerURL,
+		InsecureSkipTLSVerify: req.SkipTLSVerify,
+	}
+	if req.CAData != "" {
+		caBytes, err := base64.StdEncoding.DecodeString(req.CAData)
+		if err != nil {
+			return fmt.Errorf("invalid caData base64: %w", err)
+		}
+		cluster.CertificateAuthorityData = caBytes
+	}
+
+	// Build auth info entry
+	userName := req.ContextName + "-user"
+	authInfo := &api.AuthInfo{}
+	switch req.AuthType {
+	case "token":
+		authInfo.Token = req.Token
+	case "certificate":
+		certBytes, err := base64.StdEncoding.DecodeString(req.CertData)
+		if err != nil {
+			return fmt.Errorf("invalid certData base64: %w", err)
+		}
+		keyBytes, err := base64.StdEncoding.DecodeString(req.KeyData)
+		if err != nil {
+			return fmt.Errorf("invalid keyData base64: %w", err)
+		}
+		authInfo.ClientCertificateData = certBytes
+		authInfo.ClientKeyData = keyBytes
+	}
+
+	// Build context entry
+	ctx := &api.Context{
+		Cluster:   req.ClusterName,
+		AuthInfo:  userName,
+		Namespace: req.Namespace,
+	}
+
+	// Backup existing kubeconfig if the file exists
+	if _, statErr := os.Stat(k.kubeconfig); statErr == nil {
+		backupPath := fmt.Sprintf("%s.bak-%d", k.kubeconfig, time.Now().Unix())
+		data, readErr := os.ReadFile(k.kubeconfig)
+		if readErr != nil {
+			return fmt.Errorf("failed to read kubeconfig for backup: %w", readErr)
+		}
+		if writeErr := os.WriteFile(backupPath, data, 0600); writeErr != nil {
+			return fmt.Errorf("failed to write backup: %w", writeErr)
+		}
+	}
+
+	// Initialise maps if nil
+	if k.config.Contexts == nil {
+		k.config.Contexts = make(map[string]*api.Context)
+	}
+	if k.config.Clusters == nil {
+		k.config.Clusters = make(map[string]*api.Cluster)
+	}
+	if k.config.AuthInfos == nil {
+		k.config.AuthInfos = make(map[string]*api.AuthInfo)
+	}
+
+	// Add entries
+	k.config.Clusters[req.ClusterName] = cluster
+	k.config.AuthInfos[userName] = authInfo
+	k.config.Contexts[req.ContextName] = ctx
+
+	// Write to file
+	if writeErr := clientcmd.WriteToFile(*k.config, k.kubeconfig); writeErr != nil {
+		return fmt.Errorf("failed to write kubeconfig: %w", writeErr)
+	}
+
+	// Reload
+	k.Reload()
+	return nil
+}
+
+// TestClusterConnection attempts to connect to a Kubernetes API server
+// and returns basic info (version, reachable status).
+func (k *KubectlProxy) TestClusterConnection(req TestConnectionRequest) (*TestConnectionResult, error) {
+	if req.ServerURL == "" {
+		return nil, fmt.Errorf("serverUrl is required")
+	}
+
+	cfg := &rest.Config{
+		Host:    req.ServerURL,
+		Timeout: 10 * time.Second,
+	}
+
+	switch req.AuthType {
+	case "token":
+		cfg.BearerToken = req.Token
+	case "certificate":
+		if req.CertData != "" {
+			certBytes, err := base64.StdEncoding.DecodeString(req.CertData)
+			if err != nil {
+				return &TestConnectionResult{Reachable: false, Error: "invalid certData base64"}, nil
+			}
+			cfg.TLSClientConfig.CertData = certBytes
+		}
+		if req.KeyData != "" {
+			keyBytes, err := base64.StdEncoding.DecodeString(req.KeyData)
+			if err != nil {
+				return &TestConnectionResult{Reachable: false, Error: "invalid keyData base64"}, nil
+			}
+			cfg.TLSClientConfig.KeyData = keyBytes
+		}
+	}
+
+	if req.CAData != "" {
+		caBytes, err := base64.StdEncoding.DecodeString(req.CAData)
+		if err != nil {
+			return &TestConnectionResult{Reachable: false, Error: "invalid caData base64"}, nil
+		}
+		cfg.TLSClientConfig.CAData = caBytes
+	}
+	cfg.TLSClientConfig.Insecure = req.SkipTLSVerify
+
+	client, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return &TestConnectionResult{Reachable: false, Error: err.Error()}, nil
+	}
+
+	version, err := client.Discovery().ServerVersion()
+	if err != nil {
+		return &TestConnectionResult{Reachable: false, Error: err.Error()}, nil
+	}
+
+	return &TestConnectionResult{
+		Reachable:     true,
+		ServerVersion: version.GitVersion,
+	}, nil
 }

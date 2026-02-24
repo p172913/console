@@ -25,6 +25,7 @@ import { WidgetExportModal } from '../widgets/WidgetExportModal'
 import { FeatureRequestModal } from '../feedback/FeatureRequestModal'
 import { DynamicCardErrorBoundary } from './DynamicCardErrorBoundary'
 
+
 // Minimum duration to show spin animation (ensures at least one full rotation)
 const MIN_SPIN_DURATION = 500
 
@@ -1531,9 +1532,11 @@ export function CardWrapper({
                     This prevents the deadlock where CardWrapper waits for hasData but children never mount.
                     Suspense catches lazy() chunk loading so it doesn't bubble up to Layout and blank the whole page. */}
                     <div className={shouldShowSkeleton ? 'hidden' : 'contents'}>
-                      <Suspense fallback={<CardSkeleton type={effectiveSkeletonType} rows={skeletonRows || 3} showHeader={false} />}>
-                        {children}
-                      </Suspense>
+                      <DynamicCardErrorBoundary cardId={cardId || cardType}>
+                        <Suspense fallback={<CardSkeleton type={effectiveSkeletonType} rows={skeletonRows || 3} showHeader={false} />}>
+                          {children}
+                        </Suspense>
+                      </DynamicCardErrorBoundary>
                     </div>
                   </>
                 ) : (
@@ -1611,7 +1614,9 @@ export function CardWrapper({
             )}>
               {/* Wrapper ensures children fill available space in expanded mode */}
               <div className="flex-1 min-h-0 flex flex-col">
-                {children}
+                <DynamicCardErrorBoundary cardId={cardId || cardType}>
+                  {children}
+                </DynamicCardErrorBoundary>
               </div>
             </BaseModal.Content>
           </BaseModal>

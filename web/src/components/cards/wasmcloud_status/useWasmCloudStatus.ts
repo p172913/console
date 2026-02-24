@@ -8,6 +8,17 @@ import {
     type WasmCloudDemoData,
 } from './demoData'
 
+export interface WasmCloudStatusConfig {
+    hostsApi?: string
+    actorsApi?: string
+    refreshInterval?: number
+    metrics?: {
+        showHosts?: boolean
+        showActors?: boolean
+        showRunning?: boolean
+    }
+}
+
 export interface WasmCloudStatus {
     hosts: WasmCloudHost[]
     actors: WasmCloudActor[]
@@ -62,10 +73,13 @@ function toDemoStatus(demo: WasmCloudDemoData): WasmCloudStatus {
     return summarise(demo.hosts, demo.actors)
 }
 
-async function fetchWasmCloudStatus(): Promise<WasmCloudStatus> {
+async function fetchWasmCloudStatus(config?: WasmCloudStatusConfig): Promise<WasmCloudStatus> {
+    const hostsApi = config?.hostsApi || '/api/mcp/wasmcloud/hosts'
+    const actorsApi = config?.actorsApi || '/api/mcp/wasmcloud/actors'
+
     const [hostsResp, actorsResp] = await Promise.all([
-        api.get<{ hosts: WasmCloudHost[] }>('/api/mcp/wasmcloud/hosts'),
-        api.get<{ actors: WasmCloudActor[] }>('/api/mcp/wasmcloud/actors'),
+        api.get<{ hosts: WasmCloudHost[] }>(hostsApi),
+        api.get<{ actors: WasmCloudActor[] }>(actorsApi),
     ])
 
     const hosts = Array.isArray(hostsResp.data?.hosts) ? hostsResp.data.hosts : []
@@ -74,15 +88,16 @@ async function fetchWasmCloudStatus(): Promise<WasmCloudStatus> {
     return summarise(hosts, actors)
 }
 
-export function useWasmCloudStatus(): UseWasmCloudStatusResult {
+export function useWasmCloudStatus(config?: WasmCloudStatusConfig): UseWasmCloudStatusResult {
     const { data, isLoading, isFailed, consecutiveFailures, isDemoFallback } =
         useCache<WasmCloudStatus>({
             key: CACHE_KEY,
             category: 'default',
+            refreshInterval: config?.refreshInterval ? config.refreshInterval * 1000 : undefined,
             initialData: INITIAL_DATA,
             demoData: toDemoStatus(WASMCLOUD_DEMO_DATA),
             persist: true,
-            fetcher: fetchWasmCloudStatus,
+            fetcher: () => fetchWasmCloudStatus(config),
         })
 
     const hasAnyData = data.totalHosts > 0

@@ -6,7 +6,6 @@ import {
     XCircle,
     Server,
     Cpu,
-    RefreshCw,
     Activity,
     Box,
     ExternalLink,

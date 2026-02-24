@@ -86,7 +86,7 @@ function ActorRow({ actor }: { actor: WasmCloudActor }) {
 }
 
 
-export function WasmCloudStatus() {
+export function WasmCloudStatus({ config }: { config?: any }) {
     const { t } = useTranslation('cards')
     const { data, error, showSkeleton, showEmptyState } = useWasmCloudStatus()
     const [tab, setTab] = useState<Tab>('hosts')
@@ -108,63 +108,54 @@ export function WasmCloudStatus() {
 
     if (error || showEmptyState) {
         return (
-            <div className="h-full flex flex-col items-center justify-center min-h-card text-muted-foreground gap-2">
-                <AlertTriangle className="w-6 h-6 text-red-400" />
-                <p className="text-sm text-red-400">
-                    {error ? t('wasmcloud.fetchError') : t('wasmcloud.noHosts')}
-                </p>
-                <p className="text-xs">{t('wasmcloud.ensureRunning')}</p>
+            <div className="flex flex-col items-center justify-center p-8 text-center gap-3">
+                <div className="p-3 rounded-full bg-red-500/10 text-red-400">
+                    <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                    <p className="text-sm font-medium text-foreground">
+                        {error ? t('wasmcloud.fetchError') : t('wasmcloud.noHosts')}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {t('wasmcloud.ensureRunning')}
+                    </p>
+                </div>
             </div>
         )
     }
 
-    const overallHealthy = data.degradedHosts === 0 && data.failedActors === 0
+    const showHostsMetric = config?.metrics?.showHosts ?? true
+    const showActorsMetric = config?.metrics?.showActors ?? true
+    const showRunningMetric = config?.metrics?.showRunning ?? true
 
     return (
-        <div className="h-full flex flex-col min-0 content-loaded gap-3">
-            {/* Health badge + last sync */}
-            <div className="flex items-center justify-between flex-shrink-0">
-                <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${overallHealthy
-                        ? 'bg-green-500/15 text-green-400'
-                        : 'bg-orange-500/15 text-orange-400'
-                        }`}
-                >
-                    {overallHealthy ? (
-                        <CheckCircle className="w-4 h-4" />
-                    ) : (
-                        <AlertTriangle className="w-4 h-4" />
-                    )}
-                    {overallHealthy ? t('wasmcloud.healthy') : t('wasmcloud.degraded')}
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <RefreshCw className="w-3 h-3" />
-                    <span>
-                        {new Date(data.lastCheckTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                </div>
-            </div>
-
-            {/* Summary tiles */}
-            <div className="flex gap-3 flex-shrink-0">
-                <MetricTile
-                    label={t('wasmcloud.hosts')}
-                    value={data.totalHosts}
-                    colorClass="text-blue-400"
-                    icon={<Server className="w-4 h-4 text-blue-400" />}
-                />
-                <MetricTile
-                    label={t('wasmcloud.actors')}
-                    value={data.totalActors}
-                    colorClass="text-purple-400"
-                    icon={<Cpu className="w-4 h-4 text-purple-400" />}
-                />
-                <MetricTile
-                    label={t('wasmcloud.running')}
-                    value={data.runningActors}
-                    colorClass={data.failedActors > 0 ? 'text-yellow-400' : 'text-green-400'}
-                    icon={<Activity className="w-4 h-4 text-green-400" />}
-                />
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Summary Metrics */}
+            <div className="grid grid-cols-3 gap-3 p-4 pt-2">
+                {showHostsMetric && (
+                    <MetricTile
+                        label={t('wasmcloud.hosts')}
+                        value={data.totalHosts}
+                        colorClass="text-blue-400"
+                        icon={<Server className="w-4 h-4 text-blue-400" />}
+                    />
+                )}
+                {showActorsMetric && (
+                    <MetricTile
+                        label={t('wasmcloud.actors')}
+                        value={data.totalActors}
+                        colorClass="text-purple-400"
+                        icon={<Box className="w-4 h-4 text-purple-400" />}
+                    />
+                )}
+                {showRunningMetric && (
+                    <MetricTile
+                        label={t('wasmcloud.running')}
+                        value={data.runningActors}
+                        colorClass="text-green-400"
+                        icon={<Activity className="w-4 h-4 text-green-400" />}
+                    />
+                )}
             </div>
 
             {/* Tab switcher */}

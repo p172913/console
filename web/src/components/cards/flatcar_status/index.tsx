@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Skeleton } from '../../ui/Skeleton'
 import { useFlatcarStatus } from './useFlatcarStatus'
 import { compareFlatcarVersions } from './versionUtils'
+import { MetricTile } from '../../../lib/cards/CardComponents'
+
 
 function useFormatRelativeTime() {
   const { t } = useTranslation('cards')
@@ -19,7 +21,6 @@ function useFormatRelativeTime() {
   }
 }
 
-import { MetricTile } from '../../../lib/cards/CardComponents'
 
 export function FlatcarStatus() {
   const { t } = useTranslation('cards')
@@ -66,8 +67,8 @@ export function FlatcarStatus() {
       <div className="flex items-center justify-between">
         <div
           className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${isHealthy
-              ? 'bg-green-500/15 text-green-400'
-              : 'bg-orange-500/15 text-orange-400'
+            ? 'bg-green-500/15 text-green-400'
+            : 'bg-orange-500/15 text-orange-400'
             }`}
         >
           {isHealthy ? (

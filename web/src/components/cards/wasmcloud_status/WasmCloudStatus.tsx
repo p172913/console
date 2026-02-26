@@ -11,9 +11,10 @@ import {
     ExternalLink,
 } from 'lucide-react'
 import { Skeleton } from '../../ui/Skeleton'
-import { useWasmCloudStatus } from './useWasmCloudStatus'
+import { useWasmCloudStatus, type WasmCloudStatusConfig } from './useWasmCloudStatus'
 import type { WasmCloudHost, WasmCloudActor } from './demoData'
 import { MetricTile } from '../../../lib/cards/CardComponents'
+import { CardComponentProps } from '../cardRegistry'
 
 const HOST_STATUS_STYLE: Record<string, { icon: typeof CheckCircle; color: string; bg: string }> = {
     healthy: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/15' },
@@ -85,9 +86,9 @@ function ActorRow({ actor }: { actor: WasmCloudActor }) {
 }
 
 
-export function WasmCloudStatus({ config }: { config?: any }) {
+export function WasmCloudStatus({ config }: CardComponentProps) {
     const { t } = useTranslation('cards')
-    const { data, error, showSkeleton, showEmptyState } = useWasmCloudStatus()
+    const { data, error, showSkeleton, showEmptyState } = useWasmCloudStatus(config as WasmCloudStatusConfig)
     const [tab, setTab] = useState<Tab>('hosts')
 
     if (showSkeleton) {
@@ -123,9 +124,10 @@ export function WasmCloudStatus({ config }: { config?: any }) {
         )
     }
 
-    const showHostsMetric = config?.metrics?.showHosts ?? true
-    const showActorsMetric = config?.metrics?.showActors ?? true
-    const showRunningMetric = config?.metrics?.showRunning ?? true
+    const wasmCloudConfig = config as WasmCloudStatusConfig
+    const showHostsMetric = wasmCloudConfig?.metrics?.showHosts ?? true
+    const showActorsMetric = wasmCloudConfig?.metrics?.showActors ?? true
+    const showRunningMetric = wasmCloudConfig?.metrics?.showRunning ?? true
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
